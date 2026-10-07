@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fieldwatch</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#ECF1E8;--card:#fff;--ink:#1D2B21;--mut:#66756A;--g:#2F6B3F;--gl:#DCEBD5;--a:#B87A12;--r:#B4412F;--b:#2F6F93;--line:#D5DECF;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root:not([data-theme="light"]){}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111912;--card:#1A241C;--ink:#E6EEE4;--mut:#93A596;--g:#6DB57F;--gl:#243A2A;--a:#E0A93F;--r:#E5806E;--b:#6DB0D4;--line:#2A382D}}
+:root[data-theme="dark"]{--bg:#111912;--card:#1A241C;--ink:#E6EEE4;--mut:#93A596;--g:#6DB57F;--gl:#243A2A;--a:#E0A93F;--r:#E5806E;--b:#6DB0D4;--line:#2A382D}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 'Bricolage Grotesque',system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:18px 16px 96px}
+h1{font-size:28px;font-weight:800;margin:0 0 2px;letter-spacing:-.02em}h2{font-size:17px;margin:22px 0 8px;font-weight:600}
+.sub{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.mut{color:var(--mut);font-size:13px}.big{font-size:34px;font-weight:800;letter-spacing:-.03em}
+.wx{display:flex;gap:8px;overflow-x:auto}.wx div{flex:1;min-width:64px;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 4px}
+.alert{border-left:4px solid var(--a)}.alert.r{border-color:var(--r)}.alert.g{border-color:var(--g)}
+.bar{height:8px;border-radius:4px;background:var(--gl);overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--b)}
+input,select,button{font:inherit;color:var(--ink)}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);margin-bottom:8px}
+.btn{background:var(--g);color:var(--bg);border:0;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+.btn.s{background:none;color:var(--r);padding:4px 8px;font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;background:none;border:0;padding:8px 2px;color:var(--mut);font-size:12px;border-radius:10px;cursor:pointer}
+nav button b{display:block;font-size:20px}nav button.on{color:var(--g);background:var(--gl);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+img.pv{width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin:8px 0}
+.done{text-decoration:line-through;color:var(--mut)}
+</style></head><body><main id="app"></main>
+<nav id="nav"></nav>
+<script>
+const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const day=Math.floor(Date.now()/864e5),iso=n=>new Date((day+n)*864e5).toISOString().slice(0,10);
+const hash=s=>[...s].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7);
+const seed={fields:[{id:1,name:'North plot',crop:'Tomato',ha:2.4},{id:2,name:'River field',crop:'Maize',ha:5.1}],
+animals:[{id:1,name:'Daisy',type:'Cow',wt:480,vac:iso(4)},{id:2,name:'Flock A',type:'Goat',wt:38,vac:iso(30)}],
+tasks:[{id:1,text:'Check irrigation lines',due:iso(-1),done:false},{id:2,text:'Spray north plot',due:iso(2),done:false}],scans:[]};
+let S;try{S=JSON.parse(localStorage.getItem('fieldwatch'))}catch(x){}S=S||seed;
+const save=()=>{try{localStorage.setItem('fieldwatch',JSON.stringify(S))}catch(x){}};
+let T='home',scanRes=null;
+const moist=f=>{const h=hash(f.name)%97;return[0,1,2,3,4,5,6].map(i=>Math.round(20+50*Math.abs(Math.sin(h+(day-6+i)*.55))))};
+const wx=()=>[0,1,2,3,4].map(i=>({d:i?new Date((day+i)*864e5).toLocaleDateString('en',{weekday:'short'}):'Today',t:Math.round(22+7*Math.sin(day*.4+i*.9)),r:Math.round(50+50*Math.sin(day*.7+i*1.3))}));
+const spark=v=>{const p=v.map((y,i)=>`${i*20},${44-y*.58}`).join(' ');return`<svg viewBox="0 0 120 46" width="110" height="42" aria-hidden="true"><polyline points="${p}" fill="none" stroke="var(--b)" stroke-width="2.5" stroke-linejoin="round"/></svg>`};
+const DIS=[['Healthy leaf','No treatment needed. Keep monitoring weekly.'],['Early blight','Remove affected leaves, avoid overhead watering, apply a copper-based fungicide.'],['Late blight','Isolate affected plants, apply fungicide quickly, improve airflow.'],['Leaf rust','Remove infected leaves and apply a sulfur or triazole fungicide.'],['Powdery mildew','Reduce humidity, prune dense growth, apply sulfur spray.']];
+const alerts=()=>{const a=[];
+S.fields.forEach(f=>{const m=moist(f).pop();if(m<30)a.push(['r',`${e(f.name)}: soil moisture ${m}%`,'Irrigate today.'])});
+wx().slice(0,3).forEach(w=>{if(w.r>85)a.push(['',`High rain chance (${w.r}%) on ${w.d}`,'Delay spraying.'])});
+S.animals.forEach(x=>{const d=Math.round((new Date(x.vac)-day*864e5)/864e5);if(d<=7)a.push([d<0?'r':'',`${e(x.name)}: vaccination ${d<0?'overdue':'due in '+d+' days'}`,''])});
+S.tasks.filter(t=>!t.done&&t.due<iso(0)).forEach(t=>a.push(['r',`Overdue: ${e(t.text)}`,'']));
+S.scans.slice(0,1).forEach(s=>{if(s.i)a.push(['',`Last scan: ${s.n}`,s.adv])});return a};
+const add=(k,o)=>{o.id=Date.now();S[k].unshift(o);save();draw()};
+const del=(k,id)=>{S[k]=S[k].filter(x=>x.id!==id);save();draw()};
+const v=id=>document.getElementById(id).value.trim();
+const views={
+home(){const a=alerts(),w=wx();return`<h1>Fieldwatch</h1><p class="sub">${new Date().toLocaleDateString('en',{weekday:'long',month:'long',day:'numeric'})}</p>
+<div class="wx">${w.map(x=>`<div><div class="mut">${x.d}</div><b>${x.t}°</b><div class="mut">${x.r}% rain</div></div>`).join('')}</div>
+${here()}<h2>Needs attention</h2>${a.length?a.map(x=>`<div class="card alert ${x[0]}"><b>${x[1]}</b><div class="mut">${x[2]}</div></div>`).join(''):'<div class="card alert g"><b>All clear</b><div class="mut">Nothing needs action today.</div></div>'}
+<h2>Fields</h2>${S.fields.map(f=>{const m=moist(f).pop();return`<div class="card row"><div><b>${e(f.name)}</b><div class="mut">${e(f.crop)} · ${f.ha} ha</div></div><div class="big">${m}%</div></div>`}).join('')||'<p class="mut">No fields yet. Add one in Fields.</p>'}
+<p class="mut">Weather and soil readings are simulated demo data.</p>`},
+map(){const fs=S.fields.filter(f=>f.pts&&f.pts.length),all=[...fs.flatMap(f=>f.pts),...(pos?[[pos.lat,pos.lng]]:[])],o=all[0],f0=tf();let svg='<div class="card mut">No map yet. Start live location, then walk to a field corner and tap Mark corner.</div>';
+if(o){const P=all.map(p=>M(p,o)),xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),k=270/Math.max(x1-x0,y1-y0,40),cx=(x0+x1)/2,cy=(y0+y1)/2,tp=p=>{const m=M(p,o);return[170+(m[0]-cx)*k,170-(m[1]-cy)*k]},sb=[10,20,50,100,200,500,1000,2000,5000].find(x=>x*k>=60)||5000;
+svg=`<svg viewBox="0 0 340 340" role="img" aria-label="Field map" style="width:100%;border-radius:14px;background:var(--gl)">`+fs.map(f=>{const q=f.pts.map(tp),pt=q.map(a=>a.map(n=>n.toFixed(1)).join(',')).join(' ');return`<polygon points="${pt}" fill="var(--g)" fill-opacity=".28" stroke="var(--g)" stroke-width="2"/>`+q.map(a=>`<circle cx="${a[0]}" cy="${a[1]}" r="3.5" fill="var(--g)"/>`).join('')+`<text x="${q[0][0]+6}" y="${q[0][1]-6}" font-size="12" font-weight="600" fill="var(--ink)">${e(f.name)}</text>`}).join('')+
+(pos?(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${Math.min(Math.max(pos.acc*k,8),70)}" fill="var(--b)" fill-opacity=".18"/><circle cx="${c[0]}" cy="${c[1]}" r="6.5" fill="var(--b)" stroke="#fff" stroke-width="2.5"/>`)(tp([pos.lat,pos.lng])):'')+
+`<line x1="14" y1="322" x2="${14+sb*k}" y2="322" stroke="var(--ink)" stroke-width="2.5"/><text x="14" y="314" font-size="11" fill="var(--ink)">${fmt(sb)}</text></svg>`}
+const pad=demo?`<div class="two" style="margin-top:8px"><button class="btn" onclick="nudge(0,10)">Move north 10 m</button><button class="btn" onclick="nudge(0,-10)">Move south 10 m</button><button class="btn" onclick="nudge(10,0)">Move east 10 m</button><button class="btn" onclick="nudge(-10,0)">Move west 10 m</button></div>`:'';
+return`<h1>Map</h1><p class="sub">See your land and where you are</p>
+<div class="two">${gid!=null?'<button class="btn" onclick="stopGeo()">Stop live location</button>':'<button class="btn" onclick="geo()">Start live location</button>'}<button class="btn" style="background:var(--b)" onclick="dm()">Try demo location</button></div>
+<p class="mut" role="status">${geoErr||(pos?(demo?'Demo location':'Live')+' · accuracy ±'+Math.round(pos.acc)+' m':'Location is off.')}</p>${svg}${pad}
+${S.fields.length?`<h2>Mark field boundary</h2><select onchange="sel=+this.value">${S.fields.map(f=>`<option value="${f.id}" ${f0&&f.id===f0.id?'selected':''}>${e(f.name)} (${(f.pts||[]).length} corners)</option>`).join('')}</select>
+<div class="two"><button class="btn" ${pos?'':'disabled style="opacity:.5"'} onclick="mark()">Mark corner here</button><button class="btn" style="background:var(--a)" onclick="undo()">Undo last corner</button></div><button class="btn s" onclick="clr()">Clear this boundary</button>
+<p class="mut">Walk the edge of the field and mark each corner. Three or more corners set the area in hectares.</p>`:'<p class="mut">Add a field in Fields first.</p>'}
+<h2>Your lands</h2>${S.fields.map(f=>{const n=(f.pts||[]).length,st=!n?'No boundary yet':!pos?n+' corners':inside([pos.lat,pos.lng],f.pts)?'📍 You are inside':fmt(far([pos.lat,pos.lng],f.pts))+' away';return`<div class="card row"><div><b>${e(f.name)}</b><div class="mut">${e(f.crop)} · ${f.ha} ha</div></div><span class="mut">${st}</span></div>`}).join('')}
+<p class="mut">Satellite tiles can't load in this published page, so the map is drawn from your marked corners.</p>`},
+fields(){return`<h1>Fields</h1><p class="sub">Soil moisture, last 7 days (simulated)</p>
+${S.fields.map(f=>{const s=moist(f),m=s[6];return`<div class="card"><div class="row"><div><b>${e(f.name)}</b><div class="mut">${e(f.crop)} · ${f.ha} ha</div></div>${spark(s)}</div>
+<div class="bar"><i style="width:${m}%"></i></div><div class="row"><span class="mut">Moisture ${m}% — ${m<30?'dry, irrigate':m>60?'wet':'good'}</span><button class="btn s" onclick="del('fields',${f.id})">Remove</button></div></div>`}).join('')}
+<h2>Add field</h2><input id="fn" placeholder="Field name"><div class="two"><input id="fc" placeholder="Crop"><input id="fh" type="number" step="0.1" placeholder="Hectares"></div>
+<button class="btn" onclick="v('fn')&&add('fields',{name:v('fn'),crop:v('fc')||'Unknown',ha:+v('fh')||1})">Add field</button>`},
+scan(){const r=scanRes;return`<h1>Scan a leaf</h1><p class="sub">Take or upload a photo to check for disease.</p>
+${cam?`<video id="cv" playsinline muted style="width:100%;border-radius:12px;background:#000"></video><div class="two" style="margin-top:8px"><button class="btn" onclick="snap()">Capture leaf</button><button class="btn" style="background:var(--a)" onclick="camOff()">Close camera</button></div>`:`<button class="btn" onclick="camOn()">Open camera</button>`}
+<p class="mut" role="status">${camErr}</p><label class="mut">Or upload a photo</label><input id="ph" type="file" accept="image/*" onchange="scan(this)"><p id="st" class="mut"></p>
+${r?`<div class="card ${r.i?'alert':'alert g'}">${r.img?`<img class="pv" src="${r.img}" alt="Leaf photo">`:''}<b>${r.n}</b> <span class="mut">${r.c}% confidence</span><div>${r.adv}</div></div>`:''}
+<p class="mut">Demo classifier: results are placeholders. The full project swaps in a TensorFlow Lite model trained on PlantVillage.</p>
+<h2>History</h2>${S.scans.map(s=>`<div class="card row"><span>${s.date}</span><b>${s.n}</b></div>`).join('')||'<p class="mut">No scans yet.</p>'}`},
+animals(){return`<h1>Livestock</h1><p class="sub">Health, weight and vaccinations</p>
+${S.animals.map(x=>`<div class="card"><div class="row"><div><b>${e(x.name)}</b> <span class="mut">${e(x.type)}</span><div class="mut">${x.wt} kg · vaccine due ${x.vac}</div></div><button class="btn s" onclick="del('animals',${x.id})">Remove</button></div></div>`).join('')}
+<h2>Add animal</h2><input id="an" placeholder="Name or group"><div class="two"><input id="at" placeholder="Type (cow, goat…)"><input id="aw" type="number" placeholder="Weight (kg)"></div>
+<label class="mut">Next vaccination</label><input id="av" type="date" value="${iso(30)}">
+<button class="btn" onclick="v('an')&&add('animals',{name:v('an'),type:v('at')||'Animal',wt:+v('aw')||0,vac:v('av')})">Add animal</button>`},
+tasks(){return`<h1>Tasks</h1><p class="sub">Farm records and to-dos</p>
+<div class="two"><input id="tt" placeholder="New task"><input id="td" type="date" value="${iso(1)}"></div><button class="btn" onclick="v('tt')&&add('tasks',{text:v('tt'),due:v('td'),done:false})">Add task</button>
+<h2>Open</h2>${S.tasks.map(t=>`<div class="card row"><label class="${t.done?'done':''}"><input type="checkbox" style="width:auto;margin:0 8px 0 0" ${t.done?'checked':''} onchange="tog(${t.id})">${e(t.text)} <span class="mut">${t.due}</span></label><button class="btn s" onclick="del('tasks',${t.id})">Delete</button></div>`).join('')||'<p class="mut">No tasks. Add one above.</p>'}`}};
+const tog=id=>{const t=S.tasks.find(x=>x.id===id);t.done=!t.done;save();draw()};
+function scan(inp){const f=inp.files&&inp.files[0];if(!f)return;const st=document.getElementById('st');st.textContent='Analyzing…';
+const done=img=>result(img,f.size);
+const rd=new FileReader();rd.onerror=()=>{st.textContent='Could not read that photo. Try another image.'};
+rd.onload=()=>{const im=new Image();im.onload=()=>{try{const k=Math.min(1,480/im.width),cv=document.createElement('canvas');cv.width=im.width*k;cv.height=im.height*k;cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);done(cv.toDataURL('image/jpeg',.7))}catch(x){done('')}};im.onerror=()=>done('');im.src=rd.result};
+rd.readAsDataURL(f)}
+let pos=null,geoErr='',gid=null,demo=false,sel=null;
+const M=(p,o)=>[(p[1]-o[1])*111320*Math.cos(o[0]*Math.PI/180),(p[0]-o[0])*110540];
+const area=pts=>{const P=pts.map(p=>M(p,pts[0]));let a=0;P.forEach((q,i)=>{const n=P[(i+1)%P.length];a+=q[0]*n[1]-n[0]*q[1]});return Math.abs(a)/2/1e4};
+const inside=(pt,pts)=>{if(pts.length<3)return false;const o=pts[0],P=pts.map(p=>M(p,o)),q=M(pt,o);let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++)if((P[i][1]>q[1])!=(P[j][1]>q[1])&&q[0]<(P[j][0]-P[i][0])*(q[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0])c=!c;return c};
+const far=(pt,pts)=>{const o=pts[0],c=pts.map(p=>M(p,o)).reduce((a,b)=>[a[0]+b[0]/pts.length,a[1]+b[1]/pts.length],[0,0]),q=M(pt,o);return Math.hypot(q[0]-c[0],q[1]-c[1])};
+const fmt=m=>m<1000?Math.round(m)+' m':(m/1000).toFixed(1)+' km';
+function geo(){if(!navigator.geolocation){geoErr='Location is not available here. Try the demo.';return draw()}geoErr='Waiting for GPS…';demo=false;draw();
+gid=navigator.geolocation.watchPosition(p=>{geoErr='';pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};if(T==='map'||T==='home')draw()},er=>{gid=null;geoErr=er.code==1?'Location is blocked. Allow it in your browser or phone settings, or try the demo.':'Could not get your location. Try the demo.';draw()},{enableHighAccuracy:true,maximumAge:2000})}
+function stopGeo(){try{navigator.geolocation.clearWatch(gid)}catch(x){}gid=null;pos=null;geoErr='';draw()}
+function dm(){try{if(gid!=null)navigator.geolocation.clearWatch(gid)}catch(x){}gid=null;demo=true;geoErr='';pos={lat:-1.2921,lng:36.8219,acc:8};draw()}
+const nudge=(dx,dy)=>{pos.lng+=dx/(111320*Math.cos(pos.lat*Math.PI/180));pos.lat+=dy/110540;draw()};
+const tf=()=>S.fields.find(x=>x.id===sel)||S.fields[0];
+function mark(){const f=tf();if(!f||!pos)return;f.pts=f.pts||[];f.pts.push([pos.lat,pos.lng]);if(f.pts.length>2)f.ha=+area(f.pts).toFixed(2);save();draw()}
+function undo(){const f=tf();if(f&&f.pts){f.pts.pop();if(f.pts.length>2)f.ha=+area(f.pts).toFixed(2);save();draw()}}
+function clr(){const f=tf();if(f){f.pts=[];save();draw()}}
+const here=()=>{if(!pos)return'';const f=S.fields.find(x=>x.pts&&inside([pos.lat,pos.lng],x.pts));return f?`<div class="card alert g"><b>📍 You are in ${e(f.name)}</b><div class="mut">${e(f.crop)} · ${f.ha} ha</div></div>`:''};
+let cam=null,camErr='',asked=false;
+function result(img,sd){const k=sd%5,c=70+sd%25,d=DIS[k];scanRes={img,n:d[0],c,adv:d[1],i:k>0};S.scans.unshift({id:Date.now(),date:iso(0),n:d[0],adv:d[1],i:k>0});S.scans=S.scans.slice(0,10);save();draw()}
+const stopCam=()=>{if(cam)cam.getTracks().forEach(t=>t.stop());cam=null};
+async function camOn(){try{if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw{name:'NA'};cam=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});camErr='';draw();const v=document.getElementById('cv');v.srcObject=cam;await v.play()}catch(x){stopCam();camErr=x&&x.name==='NotAllowedError'?'Camera is blocked. Allow camera access in your browser or phone settings, or upload a photo.':'Camera is not available here. Upload a photo instead.';draw()}}
+function camOff(){stopCam();draw()}
+function snap(){const v=document.getElementById('cv');if(!v||!v.videoWidth)return;const k=Math.min(1,480/v.videoWidth),c=document.createElement('canvas');c.width=v.videoWidth*k;c.height=v.videoHeight*k;const x=c.getContext('2d');x.drawImage(v,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height).data;let sd=0;for(let i=0;i<d.length;i+=97)sd+=d[i];stopCam();result(c.toDataURL('image/jpeg',.7),sd)}
+const tabs=[['home','🏠','Home'],['map','🗺️','Map'],['fields','🌱','Fields'],['scan','📷','Scan'],['animals','🐄','Animals'],['tasks','✅','Tasks']];
+function draw(){if(T!=='scan'&&cam)stopCam();document.getElementById('app').innerHTML=views[T]();
+if(T==='map'&&!asked){asked=true;setTimeout(geo,0)}document.getElementById('nav').innerHTML=tabs.map(t=>`<button class="${T===t[0]?'on':''}" onclick="T='${t[0]}';draw();scrollTo(0,0)"><b>${t[1]}</b>${t[2]}</button>`).join('')}
+draw();
+</script></body></html>
